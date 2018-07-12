@@ -1,0 +1,166 @@
+---
+title: "movilens"
+author: "laybson"
+date: "9 de julho de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(cluster)
+library(plotly)
+library(ggplot2)
+
+movies_data = read_csv(here("data/movies.csv"))
+ratings_data = read_csv(here("data/ratings.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r message=FALSE}
+languages = unique(subset(infoLanguages, select=c("file_extension")))
+infoLanguages$languageName = ifelse(infoLanguages$file_extension == 'py', 'Python',
+                 ifelse(infoLanguages$file_extension == 'java', 'Java', 'Undefined'))
+infoLanguages = infoLanguages %>%
+  filter(file_extension %in% c("py", "java"))
+```
+
+```{r include=FALSE}
+weekend = function(day) {
+  fds = ifelse(day == "sábado", TRUE, ifelse(day == "domingo", TRUE, FALSE))
+  return(fds)
+}
+```
+
+```{r message=FALSE}
+infoLanguages = infoLanguages %>% mutate(full_date = paste(month_day, the_month, the_year, sep = '-'))
+infoLanguages = infoLanguages %>% mutate(week_day = weekdays(as.Date(full_date,'%d-%m-%Y')))
+infoLanguages = infoLanguages %>% mutate(is_weekend = weekend(week_day))
+```
+
+## Comprativo de popularidade: Java x Python
+
+Com base em uma amostragem de dados advindos do github, mostraremos algumas informações acerca à quantidade de uso das Linguagens Java e Python.
+As colunas desses dados referem-se à quantidade de usuários que enviaram arquivos de uma determinada extensão em um determinado dia entre 2016 e maio de 2017.
+
+Considerando o total de uso das duas linguagens no período avaliado, temos:
+
+```{r}
+infoLanguages %>%
+  group_by(languageName, users) %>% 
+  summarise(total_users = sum(users)) %>% 
+  ggplot(aes(x = languageName, y = total_users, fill = languageName)) + 
+  geom_col() +
+  scale_fill_manual( values = c( "Java"="tomato", "Python"="RoyalBlue" ), guide = FALSE ) +
+  labs(title = "Total de uso", x = "Linguagem", y = "Quantidade de Usuários")
+```
+
+Mostrando por mês temos:
+
+```{r}
+infoLanguages %>%
+  group_by(languageName, the_year, the_month, users) %>% 
+  summarise(total_users = sum(users)) %>% 
+  filter(the_year %in% c("2016")) %>%
+  ggplot(aes(x = as.character(the_month), y = total_users, fill = languageName)) + 
+  geom_bar(stat='identity', position='dodge') +
+  scale_fill_manual( values = c( "Java"="tomato", "Python"="RoyalBlue" )) +
+  labs(title = "Total de uso por mês em 2016", x = "Mês", y = "Quantidade de Usuários")
+```
+
+```{r}
+infoLanguages %>%
+  group_by(languageName, the_year, the_month, users) %>% 
+  summarise(total_users = sum(users)) %>% 
+  filter(the_year %in% c("2017")) %>%
+  ggplot(aes(x = as.character(the_month), y = total_users, fill = languageName)) + 
+  geom_bar(stat='identity', position='dodge') +
+  scale_fill_manual( values = c( "Java"="tomato", "Python"="RoyalBlue" )) +
+  labs(title = "Total de uso por mês em 2017", x = "Mês", y = "Quantidade de Usuários")
+```
+Vemos que, em geral, Python vem sendo mais utilizada que Java em nosso conjunto de dados.
+
+
+## Há uma diferença significativa na popularidade das linguagens durante a semana e durante o fim de semana?
+
+Considerando popularidade como o volume de pessoas utilizando a linguagem em determinado dia, podemos visualizar o seguinte:
+
+### Java
+
+
+```{r}
+infoLanguages %>%
+  filter(languageName == "Java") %>%
+  ggplot(aes(x=is_weekend, y=users, group=is_weekend, fill=is_weekend)) + 
+  geom_boxplot() +
+  scale_fill_manual( values = c("TRUE"="DodgerBlue", "FALSE"="FireBrick" )) +
+  labs(x="É final de semana?", y="Quantidade de Usuários",title="Java é mais popular em dias de semana ou fins de semana?")
+```
+O boxplot acima representa a distribuição de número de usuários por dia. A caixa vermelha representa os dias de semana, enquanto a azul representa os fins de semana. É muito claro, que na nossa amostra, Java tende a ser bem mais utilizado nos dias de semana. Isso pode ser observado também no gráfico abaixo:
+
+```{r}
+infoLanguages %>%
+  filter(languageName == "Java") %>%
+  ggplot(aes(x="", y = users, color = is_weekend)) +
+  geom_jitter(width = .2, alpha=0.4) +
+  scale_color_manual( values = c("TRUE"="DodgerBlue", "FALSE"="FireBrick" )) +
+  labs(title = "Uso de Java por dia", x = "Dias", y = "Usuários")
+```
+
+Cada ponto representa um dia. Pontos vermelhos são dias da semana, e pontos azuis são fins de semana. O volume de usuários á maior nos dias de semana.
+
+
+### Python
+
+```{r}
+infoLanguages %>%
+  filter(languageName == "Python") %>%
+  ggplot(aes(x=is_weekend, y=users, group=is_weekend, fill=is_weekend)) + 
+  geom_boxplot() +
+  scale_fill_manual( values = c("TRUE"="DodgerBlue", "FALSE"="FireBrick" )) +
+  labs(x="É final de semana?", y="Quantidade de Usuários",title="Python é mais popular em dias de semana ou fins de semana?")
+```
+
+```{r}
+infoLanguages %>%
+  filter(languageName == "Python") %>%
+  ggplot(aes(x="", y = users, color = is_weekend)) +
+  geom_jitter(width = .2, alpha=0.4) +
+  scale_color_manual( values = c("TRUE"="DodgerBlue", "FALSE"="FireBrick" )) +
+  labs(title = "Uso de Python por dia", x = "Dias", y = "Usuários")
+```
+
+O comportamento de Python é muito semelhante ao de Java quanto à diferença de quantidade de uso entre dias de semana e fins de semana na nossa amostragem.
+
+## Existe uma diferença significativa entre a popularidade das duas linguagens nos fins de semana?
+
+```{r}
+infoLanguages %>%
+  filter(is_weekend == TRUE) %>%
+  ggplot(aes(x=languageName, y=users, group=languageName, fill=languageName)) + 
+  geom_boxplot() +
+  scale_fill_manual( values = c( "Java"="tomato", "Python"="RoyalBlue" )) +
+  labs(x="Linguagem", y="Quantidade de Usuários",title="Distribuição de uso em fins de semana")
+```
+
+```{r}
+infoLanguages %>%
+  filter(is_weekend == TRUE) %>%
+  ggplot(aes(x="", y = users, color = languageName)) +
+  geom_jitter(width = .2, alpha=0.4) +
+  scale_color_manual( values = c( "Java"="tomato", "Python"="RoyalBlue" )) +
+  labs(title = "Uso das linguagens em fins de semana", x = "Fins de Semana", y = "Usuários")
+```
+
+Vendo as distribuições, é claro que na amostragem, Python tende a ser mais popular que java nos fins de semana.
